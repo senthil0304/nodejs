@@ -10,7 +10,7 @@ metadata:
   name: nodejs
   namespace: nodejs-project
 spec:
-  replicas: 7
+  replicas: 10
   selector:
     matchLabels:
       app: nodejs
