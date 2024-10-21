@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+    
+    tools {
+        nodejs 'nodejs'
+        jdk    'jdk17'
+    }
+    
+     
+    environment {
+        SCANNER_HOME= tool 'sonar-scanner'
+    }
+
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', credentialsId: 'git-cred', url: 'https://github.com/senthil0304/nodejs.git'
+            }
+        }
+    
+        stage('SonarQube Analysis') {
+    steps {
+        withSonarQubeEnv('sonar') {
+            sh '''
+                $SCANNER_HOME/bin/sonar-scanner \
+                -Dsonar.projectName=MyNodeJSApp \
+                -Dsonar.projectKey=MyNodeJSApp \
+                -Dsonar.sources=. \
+                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                -Dsonar.exclusions=node_modules/**
+            '''
+        }
+    }
+}
+        stage('Quality  Gate') {
+        steps {
+            script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'sonar-token'
+                }
+            }
+        }
+        
+        
+        stage('Install Dependencies') {
+            steps {
+                sh "npm install"
+            }
+        }
+        
+        stage('Docker Build and Push') {
+            steps {
+                script {
+                    sh 'docker build -t newimage .'
+                    sh 'docker tag newimage senthilkumar03/jenkinrepo:1000'
+                    sh 'docker login -u senthilkumar03 -p $PASSWORD'
+                    sh 'docker push senthilkumar03/jenkinrepo:1000'
+                }
+            }
+        }
+        
+        stage('Run the Conatiner') {
+            steps {
+                script {
+                    sh 'docker login -u senthilkumar03 -p $PASSWORD'
+                    sh "docker run -d --name demo-nodejs -p 8081:8081 senthilkumar03/jenkinrepo:1000"
+                }
+            }
+        }
+    } 
+} 
